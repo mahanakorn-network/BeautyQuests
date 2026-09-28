@@ -31,6 +31,7 @@ import fr.skytasul.quests.api.utils.messaging.*;
 import fr.skytasul.quests.options.*;
 import fr.skytasul.quests.players.AdminMode;
 import fr.skytasul.quests.utils.QuestUtils;
+import fr.skytasul.quests.utils.compatibility.UniItemsHook;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -164,7 +165,7 @@ public class QuestImplementation implements Quest, QuestDescriptionProvider, Com
 
 	@Override
 	public @NotNull ItemStack getQuestItem() {
-		return getOptionValueOrDef(OptionQuestItem.class);
+		return UniItemsHook.get().refresh(getOptionValueOrDef(OptionQuestItem.class));
 	}
 
 	@Override

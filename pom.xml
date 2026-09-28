@@ -52,6 +52,7 @@
 		<hikaricp.version>6.0.0</hikaricp.version>
 		<fastboard.version>2.2.0</fastboard.version>
 		<commons-lang.version>2.6</commons-lang.version>
+		<uni-items.version>2.7.1</uni-items.version>
 	</properties>
 
 	<repositories>

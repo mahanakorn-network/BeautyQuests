@@ -1,0 +1,38 @@
+---
+title: Custom items with UniItems
+description: Use provider item IDs in quest icons, rewards, requirements, and item objectives.
+---
+
+BeautyQuests uses UniItems as its custom-item bridge. You do not need to install a separate
+UniItems plugin: the library is bundled and relocated inside BeautyQuests.
+
+## Enter an item ID
+
+Anywhere the item editor asks for an item type, enter either a vanilla material or a provider ID.
+For example:
+
+```text
+DIAMOND
+itemsadder:my_namespace:ruby
+mmoitems:SWORD:CUTLASS
+oraxen:my_sword
+nexo:my_sword
+```
+
+You can still put an existing item on the cursor and click the item slot. BeautyQuests detects its
+provider ID automatically.
+
+The resolved item keeps its provider metadata in the existing serialized `ItemStack` format, so no
+quest migration is required.
+
+## Runtime behavior
+
+- Quest menu icons and item rewards are rebuilt from the provider when they are used. Changes made
+  to the source item definition therefore appear without recreating the quest item.
+- Item objectives, bring-items stages, remove-item rewards, equipment requirements, and crafting
+  checks compare the stable provider ID before the normal Bukkit metadata comparison.
+- If a provider is absent, incompatible, or no longer contains the ID, BeautyQuests keeps using the
+  saved Bukkit item as a fallback instead of failing quest loading.
+
+Restart the server after installing, removing, or updating an item-provider plugin so UniItems can
+discover the final provider set cleanly.

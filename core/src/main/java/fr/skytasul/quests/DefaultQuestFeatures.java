@@ -36,6 +36,7 @@ import fr.skytasul.quests.rewards.*;
 import fr.skytasul.quests.stages.*;
 import fr.skytasul.quests.stages.options.StageOptionProgressBar;
 import fr.skytasul.quests.utils.QuestUtils;
+import fr.skytasul.quests.utils.compatibility.UniItemsHook;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
@@ -244,6 +245,9 @@ public final class DefaultQuestFeatures {
 	}
 
 	public static void registerItemComparisons() {
+		QuestsAPI.getAPI().registerItemComparison(new ItemComparison("uniItems", Lang.comparisonUniItems.toString(),
+				Lang.comparisonUniItemsLore.toString(), UniItemsHook.get()::isSimilar)
+				.setEnabledByDefault().setHasPriority());
 		QuestsAPI.getAPI().registerItemComparison(new ItemComparison("bukkit", Lang.comparisonBukkit.toString(),
 				Lang.comparisonBukkitLore.toString(), ItemStack::isSimilar).setEnabledByDefault());
 		QuestsAPI.getAPI().registerItemComparison(new ItemComparison("customBukkit", Lang.comparisonCustomBukkit.toString(),

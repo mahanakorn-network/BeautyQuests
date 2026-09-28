@@ -87,7 +87,9 @@ public class ItemComparisonMap implements Cloneable {
 	}
 	
 	private void updated() {
-		Collections.sort(effective, Comparator.comparing(ItemComparison::hasPriority));
+		// Priority comparisons must run first: they can positively identify provider-backed
+		// items even when their display metadata changed since the quest was saved.
+		effective.sort(Comparator.comparing(ItemComparison::hasPriority).reversed());
 	}
 
 	public boolean isSimilar(@NotNull ItemStack item1, @NotNull ItemStack item2) {

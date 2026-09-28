@@ -20,13 +20,14 @@ import fr.skytasul.quests.api.gui.layout.LayoutedClickEvent;
 import fr.skytasul.quests.api.gui.layout.LayoutedGUI;
 import fr.skytasul.quests.api.localization.Lang;
 import fr.skytasul.quests.api.options.QuestOption;
+import fr.skytasul.quests.editor.parsers.HookedItemParser;
 
 public class ItemCreatorGUI extends LayoutedGUI.LayoutedRowsGUI {
 
 	private final @NotNull Consumer<ItemStack> endCallback;
 	private final @NotNull Runnable cancelCallback;
 
-	private @Nullable XMaterial type;
+	private @Nullable ItemStack baseItem;
 	private int amount = 1;
 	private @Nullable String name;
 	private @Nullable String lore;
@@ -40,7 +41,7 @@ public class ItemCreatorGUI extends LayoutedGUI.LayoutedRowsGUI {
 
 		super.buttons.put(0,
 				LayoutedButton.create(
-						() -> ItemUtils.item(type == null ? XMaterial.SPONGE : type, Lang.itemType.toString()),
+						() -> baseItem == null ? ItemUtils.item(XMaterial.SPONGE, Lang.itemType.toString()) : baseItem.clone(),
 						this::handleTypeClick));
 		super.buttons.put(1,
 				LayoutedButton.create(XMaterial.REDSTONE, () -> Lang.Amount.quickFormat("amount", amount), List.of(),
@@ -71,11 +72,11 @@ public class ItemCreatorGUI extends LayoutedGUI.LayoutedRowsGUI {
 	}
 
 	private boolean isValid() {
-		return type != null;
+		return baseItem != null;
 	}
 
 	private @NotNull ItemStack generateItem() {
-		ItemStack is = type.parseItem();
+		ItemStack is = baseItem.clone();
 		ItemMeta im = is.getItemMeta();
 		if (name != null)
 			im.setDisplayName(name);
@@ -97,16 +98,17 @@ public class ItemCreatorGUI extends LayoutedGUI.LayoutedRowsGUI {
 	}
 
 	private void handleTypeClick(LayoutedClickEvent event) {
+		HookedItemParser parser = new HookedItemParser();
 		QuestsPlugin.getPlugin().getEditorManager().getFactory().createTextEditorBuilderParser(
 				event.getPlayer(),
-				QuestsPlugin.getPlugin().getEditorManager().getFactory().getMaterialParser(true, false),
+				parser,
 				event::reopen,
-				material -> {
-					type = material;
+				item -> {
+					baseItem = item;
 					event.refreshGuiReopen();
 				})
 				.setIndication(Lang.CHOOSE_ITEM_TYPE.toString())
-				.setInitialValue(type)
+				.setInitialValue(baseItem)
 				.build().start();
 	}
 

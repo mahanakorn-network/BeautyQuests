@@ -126,8 +126,6 @@ public class IntegrationsLoader {
 		manager.addDependency(new BQDependency("UltimateTimber",
 				() -> Bukkit.getPluginManager().registerEvents(new BQUltimateTimber(), QuestsPlugin.getPlugin()), null,
 				this::isUltimateTimberValid));
-		manager.addDependency(new BQDependency("ItemsAdder", BQItemsAdder::initialize, BQItemsAdder::unload));
-		manager.addDependency(new BQDependency("MMOItems", BQMMOItems::initialize, BQMMOItems::unload));
 		manager.addDependency(new BQDependency("Tooltips", this::registerTooltips));
 	}
 

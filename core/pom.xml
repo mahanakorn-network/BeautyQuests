@@ -50,12 +50,17 @@
 							<pattern>org.bstats</pattern>
 							<shadedPattern>fr.skytasul.quests.utils.bstats</shadedPattern>
 						</relocation>
+						<relocation>
+							<pattern>io.github.projectunified.uniitem</pattern>
+							<shadedPattern>fr.skytasul.quests.libs.uniitem</shadedPattern>
+						</relocation>
 					</relocations>
 					<artifactSet>
 						<includes>
 							<include>org.bstats:*</include>
 							<include>com.tchristofferson:ConfigUpdater</include>
 							<include>com.jeff_media:SpigotUpdateChecker</include>
+							<include>io.github.projectunified:uni-item-*</include>
 						</includes>
 					</artifactSet>
 				</configuration>
@@ -227,6 +232,12 @@
 			<groupId>com.jeff_media</groupId>
 			<artifactId>SpigotUpdateChecker</artifactId>
 			<version>3.0.3-offline</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.github.projectunified</groupId>
+			<artifactId>uni-item-all</artifactId>
+			<version>${uni-items.version}</version>
 			<scope>compile</scope>
 		</dependency>
 

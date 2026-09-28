@@ -8,6 +8,7 @@ import fr.skytasul.quests.api.rewards.RewardGiveContext;
 import fr.skytasul.quests.api.utils.Utils;
 import fr.skytasul.quests.api.utils.messaging.PlaceholderRegistry;
 import fr.skytasul.quests.gui.items.ItemsGUI;
+import fr.skytasul.quests.utils.compatibility.UniItemsHook;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -31,7 +32,7 @@ public class ItemReward extends AbstractReward {
 	@Override
 	public void give(RewardGiveContext context) {
 		for (Player player : context.getQuester().getOnlinePlayers()) {
-			Utils.giveItems(player, items);
+			Utils.giveItems(player, UniItemsHook.get().refreshAll(items, player));
 		}
 		if (!items.isEmpty())
 			context.addEarning(this);

@@ -712,6 +712,8 @@ inv:
     enchantsLore: Compares items enchants
     repairCost: Repair cost
     repairCostLore: Compares repair cost for armors and swords
+    uniItems: UniItems provider ID
+    uniItemsLore: Compares stable provider IDs from supported custom-item plugins
     itemsAdder: ItemsAdder
     itemsAdderLore: Compares ItemsAdder IDs
     mmoItems: MMOItems item

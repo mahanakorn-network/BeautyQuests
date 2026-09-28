@@ -222,24 +222,6 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.github.LoneDev6</groupId>
-			<artifactId>api-itemsadder</artifactId>
-			<version>3.2.5</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>net.Indyuce</groupId>
-			<artifactId>MMOItems-API</artifactId>
-			<version>6.9.4-SNAPSHOT</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency> <!-- Required for MMOItems-API to compile -->
-			<groupId>io.lumine</groupId>
-			<artifactId>MythicLib-dist</artifactId>
-			<version>1.5.2-SNAPSHOT</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
 			<groupId>uk.antiperson.stackmob</groupId>
 			<artifactId>StackMob</artifactId>
 			<version>5.8.2</version>

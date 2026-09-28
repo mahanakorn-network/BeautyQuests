@@ -8,7 +8,9 @@ import fr.skytasul.quests.api.options.OptionSet;
 import fr.skytasul.quests.api.options.QuestOption;
 import fr.skytasul.quests.api.quests.creation.QuestCreationGuiClickEvent;
 import fr.skytasul.quests.api.utils.Utils;
+import fr.skytasul.quests.editor.parsers.HookedItemParser;
 import fr.skytasul.quests.utils.QuestUtils;
+import fr.skytasul.quests.utils.compatibility.UniItemsHook;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
@@ -34,7 +36,14 @@ public class OptionQuestItem extends QuestOption<ItemStack> {
 
 	@Override
 	public void load(ConfigurationSection config, String key) {
-		setValue(config.isItemStack(key) ? config.getItemStack(key) : XMaterial.valueOf(config.getString(key)).parseItem());
+		if (config.isItemStack(key)) {
+			setValue(config.getItemStack(key));
+			return;
+		}
+
+		String value = config.getString(key);
+		ItemStack providerItem = UniItemsHook.get().build(value);
+		setValue(providerItem == null ? XMaterial.valueOf(value).parseItem() : providerItem);
 	}
 
 	@Override
@@ -67,16 +76,17 @@ public class OptionQuestItem extends QuestOption<ItemStack> {
 				event.getPlayer().setItemOnCursor(null);
 			});
 		} else {
+			HookedItemParser parser = new HookedItemParser();
 			QuestsPlugin.getPlugin().getEditorManager().getFactory().createTextEditorBuilderParser(event.getPlayer(),
-					QuestsPlugin.getPlugin().getEditorManager().getFactory().getMaterialParser(true, false),
-					event::reopen, material -> {
-						setValue(material.parseItem());
+					parser,
+					event::reopen, item -> {
+						setValue(item);
 						event.reopen();
 					}).addReset(() -> {
 						resetValue();
 						event.reopen();
 					}, "null")
-					.setInitialString(getValue().getType().name())
+					.setInitialString(parser.serialize(getValue()))
 					.setIndication(Lang.QUEST_MATERIAL.toString())
 					.build().start();
 		}

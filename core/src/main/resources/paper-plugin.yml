@@ -73,6 +73,30 @@ dependencies:
       required: false
     ItemsAdder:
       required: false
+    MMOItems:
+      required: false
+    Oraxen:
+      required: false
+    Nexo:
+      required: false
+    CraftEngine:
+      required: false
+    EcoItems:
+      required: false
+    ExecutableItems:
+      required: false
+    ItemEdit:
+      required: false
+    HeadDatabase:
+      required: false
+    Nova:
+      required: false
+    Slimefun:
+      required: false
+    CustomFishing:
+      required: false
+    ItemBridge:
+      required: false
     StackMob:
       required: false
     Tooltips:
