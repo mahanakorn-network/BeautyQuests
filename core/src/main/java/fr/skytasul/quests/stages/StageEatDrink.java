@@ -11,6 +11,7 @@ import fr.skytasul.quests.api.stages.types.AbstractItemStage;
 import fr.skytasul.quests.api.utils.CountableObject;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
@@ -32,7 +33,7 @@ public class StageEatDrink extends AbstractItemStage implements Listener {
 		return Lang.SCOREBOARD_EAT_DRINK.toString();
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onItemConsume(PlayerItemConsumeEvent event) {
 		event(event.getPlayer(), event.getItem(), 1);
 	}

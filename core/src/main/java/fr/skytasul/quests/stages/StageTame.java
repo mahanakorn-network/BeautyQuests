@@ -10,6 +10,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Tameable;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityTameEvent;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +21,7 @@ public class StageTame extends AbstractEntityStage implements Listener {
 		super(controller, entity, amount);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onTame(EntityTameEvent e) {
 		if (e.getOwner() instanceof Player) {
 			Player p = (Player) e.getOwner();

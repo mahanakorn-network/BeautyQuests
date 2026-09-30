@@ -38,6 +38,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public class QuestCreationGuiImplementation extends LayoutedGUI implements QuestCreationGui {
@@ -163,13 +168,13 @@ public class QuestCreationGuiImplementation extends LayoutedGUI implements Quest
 	}
 
 	private void finish() {
-		QuestImplementation qu;
 		QuestsManagerImplementation manager = BeautyQuests.getInstance().getQuestsManager();
+		QuestImplementation previousQuest = session.isEdition() ? session.getQuestEdited() : null;
+		QuestImplementation qu;
 		if (session.isEdition()) {
 			QuestsPlugin.getPlugin().getLoggerExpanded().debug(
 					"Editing quest " + session.getQuestEdited().getId() + " with keep datas: " + keepPlayerDatas);
-			session.getQuestEdited().delete(true, true);
-			qu = new QuestImplementation(manager, session.getQuestEdited().getId(), session.getQuestEdited().getFile());
+			qu = new QuestImplementation(manager, previousQuest.getId(), previousQuest.getFile());
 		}else {
 			qu = manager.createQuest(session.hasCustomID() ? OptionalInt.of(session.getCustomID()) : OptionalInt.empty());
 		}
@@ -181,51 +186,138 @@ public class QuestCreationGuiImplementation extends LayoutedGUI implements Quest
 		QuestBranchImplementation mainBranch = new QuestBranchImplementation(qu.getBranchesManager());
 		qu.getBranchesManager().addBranch(mainBranch);
 		boolean failure = loadBranch(mainBranch, session.getStagesGUI());
+		if (failure) {
+			qu.discardUnloaded();
+			return;
+		}
 
 		QuestCreateEvent event = new QuestCreateEvent(qu, session.isEdition(), session.getPlayer());
 		Bukkit.getPluginManager().callEvent(event);
 		if (event.isCancelled()){
-			qu.delete(true, false);
+			qu.discardUnloaded();
 			Lang.CANCELLED.send(session.getPlayer());
-		}else {
-			if (session.areStagesEdited()) {
-				if (keepPlayerDatas) {
-					QuestsPlugin.getPlugin().getLoggerExpanded().warning("Players quests datas will be kept for quest #" + qu.getId()
-							+ " - this may cause datas issues.");
-				} else
-					BeautyQuests.getInstance().getQuesterManager().getDataManager()
-							.resetQuestData(session.getQuestEdited().getId())
-							.whenComplete(QuestsPlugin.getPlugin().getLoggerExpanded()
-									.logError("An error occurred while removing player datas after quest edition",
-											session.getPlayer()));
-			}
-
-			QuestsAPI.getAPI().getQuestsManager().addQuest(qu);
-			Lang msg = session.isEdition() ? Lang.SUCCESFULLY_EDITED : Lang.SUCCESFULLY_CREATED;
-			msg.send(session.getPlayer(), qu,
-					PlaceholderRegistry.of("quest_branches", qu.getBranchesManager().getBranches().size()));
-			QuestUtils.playPluginSound(session.getPlayer(), "ENTITY_VILLAGER_YES", 1);
-			QuestsPlugin.getPlugin().getLoggerExpanded().info("New quest created: {}, ID {}, by {}", qu.getName(),
-					qu.getId(), session.getPlayer().getName());
-			if (session.isEdition()) {
-				QuestsPlugin.getPlugin().getLoggerExpanded().info("Quest " + qu.getName() + " has been edited");
-				if (failure) BeautyQuests.getInstance().createQuestBackup(qu.getFile().toPath(), "Error occurred while editing");
-			}
-			try {
-				qu.saveToFile();
-			}catch (Exception e) {
-				DefaultErrors.sendGeneric(session.getPlayer(), "initial quest save");
-				QuestsPlugin.getPlugin().getLoggerExpanded().severe("Error when trying to save newly created quest.", e);
-			}
-
-			QuestsAPI.getAPI().propagateQuestsHandlers(handler -> {
-				if (session.isEdition())
-					handler.questEdit(qu, session.getQuestEdited(), keepPlayerDatas);
-				else handler.questCreate(qu);
-			});
+			close(session.getPlayer());
+			return;
 		}
 
+		Path backup = null;
+		try {
+			backup = backupQuestFile(qu.getFile().toPath());
+			qu.saveToFile();
+		} catch (Exception error) {
+			qu.discardUnloaded();
+			deleteBackup(backup);
+			DefaultErrors.sendGeneric(session.getPlayer(), "initial quest save");
+			QuestsPlugin.getPlugin().getLoggerExpanded().severe("Error when trying to save newly created quest.", error);
+			return;
+		}
+
+		try {
+			if (previousQuest != null)
+				previousQuest.delete(true, true);
+			manager.addQuest(qu);
+		} catch (Throwable error) {
+			boolean candidateWasRegistered = manager.getQuests().contains(qu);
+			manager.removeQuest(qu);
+			try {
+				if (candidateWasRegistered)
+					qu.unload();
+				else
+					qu.discardUnloaded();
+			} catch (Throwable unloadError) {
+				error.addSuppressed(unloadError);
+			}
+			if (rollbackQuestFile(qu.getFile().toPath(), backup))
+				restorePreviousQuest(manager, previousQuest, qu.getId(), error);
+			DefaultErrors.sendGeneric(session.getPlayer(), "quest activation");
+			QuestsPlugin.getPlugin().getLoggerExpanded().severe("Error when trying to activate the saved quest.", error);
+			return;
+		}
+		deleteBackup(backup);
+
+		if (session.areStagesEdited()) {
+			if (keepPlayerDatas) {
+				QuestsPlugin.getPlugin().getLoggerExpanded().warning("Players quests datas will be kept for quest #" + qu.getId()
+						+ " - this may cause datas issues.");
+			} else
+				BeautyQuests.getInstance().getQuesterManager().getDataManager()
+						.resetQuestData(previousQuest.getId())
+						.whenComplete(QuestsPlugin.getPlugin().getLoggerExpanded()
+								.logError("An error occurred while removing player datas after quest edition",
+										session.getPlayer()));
+		}
+
+		Lang msg = session.isEdition() ? Lang.SUCCESFULLY_EDITED : Lang.SUCCESFULLY_CREATED;
+		msg.send(session.getPlayer(), qu,
+				PlaceholderRegistry.of("quest_branches", qu.getBranchesManager().getBranches().size()));
+		QuestUtils.playPluginSound(session.getPlayer(), "ENTITY_VILLAGER_YES", 1);
+		QuestsPlugin.getPlugin().getLoggerExpanded().info("New quest created: {}, ID {}, by {}", qu.getName(),
+				qu.getId(), session.getPlayer().getName());
+		if (session.isEdition())
+			QuestsPlugin.getPlugin().getLoggerExpanded().info("Quest " + qu.getName() + " has been edited");
+
+		QuestsAPI.getAPI().propagateQuestsHandlers(handler -> {
+			if (session.isEdition())
+				handler.questEdit(qu, previousQuest, keepPlayerDatas);
+			else handler.questCreate(qu);
+		});
+
 		close(session.getPlayer());
+	}
+
+	private Path backupQuestFile(Path questFile) throws IOException {
+		if (!Files.exists(questFile))
+			return null;
+		Path absolutePath = questFile.toAbsolutePath();
+		Path backup = Files.createTempFile(absolutePath.getParent(), "quest-" + absolutePath.getFileName() + "-", ".bak");
+		try {
+			Files.copy(absolutePath, backup, StandardCopyOption.REPLACE_EXISTING);
+			return backup;
+		} catch (IOException error) {
+			Files.deleteIfExists(backup);
+			throw error;
+		}
+	}
+
+	private boolean rollbackQuestFile(Path questFile, @Nullable Path backup) {
+		try {
+			if (backup == null) {
+				Files.deleteIfExists(questFile);
+				return true;
+			}
+			try {
+				Files.move(backup, questFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			} catch (AtomicMoveNotSupportedException ignored) {
+				Files.move(backup, questFile, StandardCopyOption.REPLACE_EXISTING);
+			}
+			return true;
+		} catch (IOException restoreError) {
+			QuestsPlugin.getPlugin().getLoggerExpanded().severe("Could not restore the previous quest file.", restoreError);
+			return false;
+		}
+	}
+
+	private void restorePreviousQuest(QuestsManagerImplementation manager, @Nullable QuestImplementation previousQuest,
+			int questId, Throwable activationError) {
+		if (previousQuest == null || manager.getQuest(questId) != null)
+			return;
+		try {
+			manager.addQuest(QuestImplementation.loadFromFile(manager, previousQuest.getFile()));
+		} catch (Exception restoreError) {
+			activationError.addSuppressed(restoreError);
+			QuestsPlugin.getPlugin().getLoggerExpanded().severe("Could not reactivate the previous quest after rollback.",
+					restoreError);
+		}
+	}
+
+	private void deleteBackup(@Nullable Path backup) {
+		if (backup == null)
+			return;
+		try {
+			Files.deleteIfExists(backup);
+		} catch (IOException error) {
+			QuestsPlugin.getPlugin().getLoggerExpanded().warning("Could not delete temporary quest backup " + backup);
+		}
 	}
 
 	private boolean loadBranch(QuestBranchImplementation branch, StagesGUI stagesGui) {

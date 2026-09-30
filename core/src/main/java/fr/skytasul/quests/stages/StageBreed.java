@@ -14,6 +14,7 @@ import org.bukkit.entity.Breedable;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
@@ -35,7 +36,7 @@ public class StageBreed extends AbstractEntityStage implements Listener {
 		super(controller, entity, amount);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onBreed(EntityBreedEvent e) {
 		if (e.getBreeder() instanceof Player) {
 			Player p = (Player) e.getBreeder();
@@ -43,7 +44,7 @@ public class StageBreed extends AbstractEntityStage implements Listener {
 		}
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onEntityChangeBlock(EntityChangeBlockEvent e) {
 		if (!EGG_MATERIALS.contains(e.getTo()))
 			return;

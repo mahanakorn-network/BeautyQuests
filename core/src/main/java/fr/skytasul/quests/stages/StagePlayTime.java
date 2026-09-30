@@ -34,9 +34,9 @@ public class StagePlayTime extends AbstractStage implements HasProgress {
 	private final long playTicks;
 	private final TimeMode timeMode;
 
-	private Map<Player, BukkitTask> tasks = new HashMap<>();
+	private final Map<Player, BukkitTask> tasks = new HashMap<>();
 
-	private Set<Quester> runningQuesters = new HashSet<>();
+	private final Set<Quester> runningQuesters = new HashSet<>();
 	private BukkitTask refreshTask;
 
 	public StagePlayTime(StageController controller, long ticks, TimeMode timeMode) {
@@ -120,7 +120,7 @@ public class StagePlayTime extends AbstractStage implements HasProgress {
 		if (refreshTask != null)
 			return;
 
-		refreshTask = Bukkit.getScheduler().runTaskTimerAsynchronously(BeautyQuests.getInstance(), () -> {
+		refreshTask = Bukkit.getScheduler().runTaskTimer(BeautyQuests.getInstance(), () -> {
 			runningQuesters.forEach(controller::notifyQuesterUpdate);
 		}, 20L, 20L);
 	}
@@ -170,7 +170,11 @@ public class StagePlayTime extends AbstractStage implements HasProgress {
 		super.ended(quester);
 
 		cancelRefresh(quester);
-		quester.getOnlinePlayers().forEach(p -> tasks.remove(p).cancel());
+		quester.getOnlinePlayers().forEach(p -> {
+			BukkitTask task = tasks.remove(p);
+			if (task != null)
+				task.cancel();
+		});
 	}
 
 	@Override

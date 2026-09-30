@@ -63,7 +63,7 @@ public class StageBucket extends AbstractStage implements HasSingleObject, Liste
 		return QuestsConfiguration.getConfig().getStageDescriptionConfig();
 	}
 
-	@EventHandler (priority = EventPriority.MONITOR)
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onBucketFill(PlayerBucketFillEvent e) {
 		Player p = e.getPlayer();
 		if (BucketType.fromMaterial(XMaterial.matchXMaterial(e.getItemStack())) == bucket) {

@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 @Unmodifiable
@@ -21,50 +22,73 @@ public class RewardList extends AbstractList<AbstractReward> {
 	private final @NotNull List<@NotNull AbstractReward> rewards;
 	private final boolean hasAsync;
 
-	private final List<fr.skytasul.quests.api.questers.Quester> asyncQuesters;
+	private final Map<Quester, Integer> asyncQuesters = new ConcurrentHashMap<>();
 
 	public RewardList() {
 		this.rewards = List.of();
 		this.hasAsync = false;
-		this.asyncQuesters = null;
 	}
 
 	public RewardList(@NotNull Collection<@NotNull AbstractReward> rewards) {
 		this.rewards = List.of(rewards.toArray(AbstractReward[]::new));
 		this.hasAsync = rewards.stream().anyMatch(AbstractReward::isAsync);
-		this.asyncQuesters = new ArrayList<>();
 	}
 
 	public @NotNull CompletableFuture<RewardsGiveResult> giveRewards(@NotNull Quester quester) {
-		var future = new CompletableFuture<RewardsGiveResult>();
+		var context = new RewardGiveContext(quester);
+		CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
 
-		Runnable task = () -> {
-			try {
-				var context = new RewardGiveContext(quester);
-				for (var reward : rewards) {
-					try {
-						reward.give(context);
-					} catch (Exception ex) {
-						QuestsPlugin.getPlugin().getLoggerExpanded()
-								.severe("An exception occurred while giving a reward to {}", ex, quester.getDetailedName());
-					}
-				}
-				future.complete(new RewardsGiveResult(context.isBranchInterrupted(), context.getEarnings()));
-			} catch (Throwable ex) {
-				future.completeExceptionally(ex);
-			}
-			if (asyncQuesters != null) // TODO check if it's called before executing following actions of the future
-				asyncQuesters.remove(quester);
-		};
+		if (hasAsync)
+			asyncQuesters.merge(quester, 1, Integer::sum);
 
-		if (hasAsync) {
-			asyncQuesters.add(quester);
-			Bukkit.getScheduler().runTaskAsynchronously(QuestsPlugin.getPlugin(), task);
-		} else {
-			task.run();
+		for (var reward : rewards)
+			chain = chain.thenCompose(ignored -> giveReward(reward, context, quester));
+
+		CompletableFuture<RewardsGiveResult> result = chain.thenApply(ignored ->
+				new RewardsGiveResult(context.isBranchInterrupted(), context.getEarnings()));
+		if (!hasAsync)
+			return result;
+
+		return result.whenComplete((ignored, error) -> asyncQuesters.computeIfPresent(quester,
+				(key, executions) -> executions > 1 ? executions - 1 : null));
+	}
+
+	private @NotNull CompletableFuture<Void> giveReward(@NotNull AbstractReward reward,
+			@NotNull RewardGiveContext context, @NotNull Quester quester) {
+		if (!reward.isAsync() && Bukkit.isPrimaryThread()) {
+			giveRewardSafely(reward, context, quester);
+			return CompletableFuture.completedFuture(null);
 		}
 
+		var future = new CompletableFuture<Void>();
+		Runnable task = () -> {
+			try {
+				giveRewardSafely(reward, context, quester);
+				future.complete(null);
+			} catch (Throwable error) {
+				future.completeExceptionally(error);
+			}
+		};
+
+		try {
+			if (reward.isAsync())
+				Bukkit.getScheduler().runTaskAsynchronously(QuestsPlugin.getPlugin(), task);
+			else
+				Bukkit.getScheduler().runTask(QuestsPlugin.getPlugin(), task);
+		} catch (Throwable error) {
+			future.completeExceptionally(error);
+		}
 		return future;
+	}
+
+	private void giveRewardSafely(@NotNull AbstractReward reward, @NotNull RewardGiveContext context,
+			@NotNull Quester quester) {
+		try {
+			reward.give(context);
+		} catch (Exception ex) {
+			QuestsPlugin.getPlugin().getLoggerExpanded()
+					.severe("An exception occurred while giving a reward to {}", ex, quester.getDetailedName());
+		}
 	}
 
 	public void giveSubrewards(@NotNull Player player, RewardGiveContext context) {
@@ -84,7 +108,7 @@ public class RewardList extends AbstractList<AbstractReward> {
 	}
 
 	public boolean isInAsyncReward(@NotNull Quester quester) {
-		return asyncQuesters != null && asyncQuesters.contains(quester);
+		return asyncQuesters.containsKey(quester);
 	}
 
 	public void attachQuest(@NotNull Quest quest) {

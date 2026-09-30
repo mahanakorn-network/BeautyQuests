@@ -20,6 +20,7 @@ import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -61,7 +62,7 @@ public class StageInteractLocation extends AbstractStage implements Locatable.Pr
 		return locatedBlock;
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onInteract(PlayerInteractEvent e){
 		if (e.getClickedBlock() == null) return;
 		if (e.getHand() != EquipmentSlot.HAND)

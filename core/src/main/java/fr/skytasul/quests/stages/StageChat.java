@@ -20,6 +20,7 @@ import org.apache.commons.lang.Validate;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -79,14 +80,14 @@ public class StageChat extends AbstractStage implements Listener {
 		return ignoreCase;
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onTchat(AsyncPlayerChatEvent e) {
 		if (isCommand)
 			return;
 		if (check(e.getMessage(), e.getPlayer()) && cancel) e.setCancelled(true);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onCommand(PlayerCommandPreprocessEvent e) {
 		if (!isCommand)
 			return;

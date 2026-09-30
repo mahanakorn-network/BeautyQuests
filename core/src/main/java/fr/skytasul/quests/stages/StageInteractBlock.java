@@ -19,6 +19,7 @@ import fr.skytasul.quests.gui.blocks.SelectBlockGUI;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -55,7 +56,7 @@ public class StageInteractBlock extends AbstractStage implements Locatable.Multi
 		return QuestsAPI.getAPI().getBlocksManager().getNearbyBlocks(fetcher, Collections.singleton(block));
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onInteract(PlayerInteractEvent e){
 		if (e.getClickedBlock() == null) return;
 		if (e.getHand() != EquipmentSlot.HAND)

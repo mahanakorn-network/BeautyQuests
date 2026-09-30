@@ -42,8 +42,10 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -606,6 +608,18 @@ public class QuestImplementation implements Quest, QuestDescriptionProvider, Com
 		options.forEach(QuestOption::detach);
 	}
 
+	/**
+	 * Releases a quest candidate which has never been registered in the quests manager.
+	 * Unlike {@link #unload()}, this does not publish lifecycle events for an object that was never live.
+	 */
+	public void discardUnloaded() {
+		manager.getBranches().forEach(branch -> {
+			branch.getRegularStages().forEach(stage -> stage.getStage().unload());
+			branch.getEndingStages().forEach(ending -> ending.getStage().getStage().unload());
+		});
+		options.forEach(QuestOption::detach);
+	}
+
 	@Override
 	public String toString(){
 		return "Quest{id=" + id + ", npcID=" + ", branches=" + manager.toString() + ", name=" + getName() + "}";
@@ -625,17 +639,28 @@ public class QuestImplementation implements Quest, QuestDescriptionProvider, Com
 		save(fc);
 
 		Path path = file.toPath();
-		if (!Files.exists(path))
-			Files.createFile(path);
-
 		String questData = fc.saveToString();
-		String oldQuestDatas = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+		String oldQuestDatas = Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : null;
 		if (questData.equals(oldQuestDatas)) {
 			return false;
-		}else {
-			Files.write(path, questData.getBytes(StandardCharsets.UTF_8));
-			return true;
 		}
+
+		Path absolutePath = path.toAbsolutePath();
+		Path parent = absolutePath.getParent();
+		Files.createDirectories(parent);
+		Path temporaryFile = Files.createTempFile(parent, "quest-" + id + "-", ".tmp");
+		try {
+			Files.writeString(temporaryFile, questData, StandardCharsets.UTF_8);
+			try {
+				Files.move(temporaryFile, absolutePath, StandardCopyOption.ATOMIC_MOVE,
+						StandardCopyOption.REPLACE_EXISTING);
+			} catch (AtomicMoveNotSupportedException ignored) {
+				Files.move(temporaryFile, absolutePath, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} finally {
+			Files.deleteIfExists(temporaryFile);
+		}
+		return true;
 	}
 
 	private void save(@NotNull ConfigurationSection section) throws DataSavingException {
